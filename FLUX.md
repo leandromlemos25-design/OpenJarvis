@@ -54,15 +54,20 @@ O Flux tem um **modo voz**: você fala, ele responde **falando** com voz de mord
 - 🔊 Voz de saída: **Cartesia** (nuvem) — única forma de soar *bem fluida* em PT-BR.
 
 ```bash
-uv sync --extra dev --extra desktop
-uv pip install sounddevice soundfile numpy
+uv sync --extra dev --extra desktop --extra flux-voice
 setx CARTESIA_API_KEY "sua-chave"        # Windows (reabra o terminal); export no Linux/Mac
-uv run python examples/flux/flux_voice.py
+# Windows: rode pela venv direto p/ não perder a extensão nativa/áudio:
+.venv\Scripts\python.exe examples\flux\flux_voice.py
+# (ou, sem re-sincronizar deps:  uv run --no-sync python examples/flux/flux_voice.py)
 ```
 
+Opções úteis: `--hands-free` (sem apertar Enter, detecta fala por VAD),
+`--device cuda` (GPU, precisa CUDA/cuBLAS; padrão é `cpu`), `--model qwen3.5:35b`.
 Detalhes e voz PT-BR: [`examples/flux/README.md`](examples/flux/README.md).
-A voz de **entrada** também funciona na interface web (`jarvis serve`), via o bloco
-`[speech]` já configurado no preset.
+
+**Sobre a interface web (`jarvis serve`):** ela faz voz de **entrada** (você dita
+pelo microfone), mas **não fala as respostas de volta** — o servidor não sintetiza
+TTS no chat. Para conversa por voz **mão-dupla**, use o script `flux_voice.py` acima.
 
 ## Deixar o Flux online
 

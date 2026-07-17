@@ -4,24 +4,29 @@
 Fluxo:
     🎤 você fala  ->  transcreve LOCAL (faster-whisper)  ->  Flux responde
     (persona de mordomo + ferramentas)  ->  🔊 Flux fala de volta
-    (Cartesia, voz "British Butler", fluida).
+    (Cartesia, voz fluida).
 
 Cérebro (LLM) e transcrição rodam LOCAIS; só a voz de saída vai à nuvem (Cartesia).
 
 Pré-requisitos (na raiz do repo):
     1. Ollama:            ollama serve   &&   ollama pull qwen3.5:9b
     2. OpenJarvis:        uv sync --extra dev --extra desktop
-    3. Libs de áudio:     uv pip install sounddevice soundfile numpy
+    3. Libs de áudio:     uv sync --extra flux-voice   (ou: uv pip install sounddevice soundfile numpy)
     4. Chave Cartesia:    Windows  ->  setx CARTESIA_API_KEY "sua-chave"  (reabra o terminal)
                           Linux/Mac->  export CARTESIA_API_KEY="sua-chave"
 
-Uso:
-    uv run python examples/flux/flux_voice.py
-    uv run python examples/flux/flux_voice.py --model qwen3.5:35b
-    uv run python examples/flux/flux_voice.py --voice <voice_id-PT-BR-da-Cartesia>
+Uso (Windows: rode pela venv direto p/ não perder a extensão nativa/áudio):
+    .venv\\Scripts\\python.exe examples\\flux\\flux_voice.py
+    # ou, sem re-sincronizar deps:
+    uv run --no-sync python examples/flux/flux_voice.py
+
+    python examples/flux/flux_voice.py --hands-free       # sem apertar Enter (VAD)
+    python examples/flux/flux_voice.py --device cuda       # GPU (precisa CUDA/cuBLAS)
+    python examples/flux/flux_voice.py --model qwen3.5:35b
 
 Durante a conversa:
-    - Enter começa a gravar; Enter de novo para parar (fala e escuta).
+    - Modo padrão: Enter começa a gravar; Enter de novo para parar.
+    - Modo --hands-free: fale quando quiser; o silêncio encerra a fala.
     - Diga "sair" / "tchau", ou Ctrl+C, para encerrar.
 """
 
@@ -39,6 +44,17 @@ import click
 SAMPLE_RATE_IN = 16000  # faster-whisper espera 16 kHz mono
 
 
+# ─────────────────────────── saída (Windows-safe) ─────────────────────────────
+# click.echo(err=True) estoura no console do Windows (colorama/_winconsole,
+# "Windows error 6"). Usamos print puro para não engolir erros reais.
+def _out(msg: str = "") -> None:
+    print(msg, flush=True)
+
+
+def _err(msg: str) -> None:
+    print(msg, file=sys.stderr, flush=True)
+
+
 # ─────────────────────────── dependências opcionais ───────────────────────────
 def _require_audio():
     """Importa as libs de áudio com mensagem de erro clara se faltarem."""
@@ -49,12 +65,12 @@ def _require_audio():
 
         return np, sd, sf
     except ImportError as exc:
-        click.echo(
+        _err(
             "Erro: faltam libs de áudio. Instale com:\n"
-            "  uv pip install sounddevice soundfile numpy\n"
-            "(No Linux, pode ser necessário: sudo apt install libportaudio2)\n"
-            f"Detalhe: {exc}",
-            err=True,
+            "  uv sync --extra flux-voice\n"
+            "  (ou: uv pip install sounddevice soundfile numpy)\n"
+            "No Linux, pode faltar: sudo apt install libportaudio2\n"
+            f"Detalhe: {exc}"
         )
         sys.exit(1)
 
@@ -94,14 +110,12 @@ def _load_persona() -> str:
 
 # ─────────────────────────────── gravação ─────────────────────────────────────
 def record_until_enter(sd, np):
-    """Grava do microfone até o usuário apertar Enter. Retorna array mono float32."""
-    click.echo("🎤 Fale... (Enter para parar)")
+    """Push-to-talk: grava do microfone até o usuário apertar Enter."""
+    _out("🎤 Fale... (Enter para parar)")
     frames: list = []
     q: queue.Queue = queue.Queue()
 
     def callback(indata, _frames, _time, status):
-        if status:
-            pass  # xruns ocasionais são inofensivos
         q.put(indata.copy())
 
     stop = threading.Event()
@@ -119,10 +133,91 @@ def record_until_enter(sd, np):
     return np.concatenate(frames, axis=0)
 
 
+def record_hands_free(sd, np, threshold=None, silence_ms=1200, max_ms=15000, calib_ms=600):
+    """Hands-free (VAD por energia): calibra o ruído, espera você falar e
+    encerra sozinho após um trecho de silêncio."""
+    sr = SAMPLE_RATE_IN
+    block = 1024
+    block_ms = block / sr * 1000.0
+    q: queue.Queue = queue.Queue()
+
+    def callback(indata, _frames, _time, status):
+        q.put(indata[:, 0].copy())
+
+    frames: list = []
+    ambient: list = []
+    started = False
+    silence_acc = 0.0
+    dur = 0.0
+
+    _out("🎧 Fale quando quiser (o silêncio encerra a fala)...")
+    with sd.InputStream(
+        samplerate=sr, channels=1, dtype="float32", blocksize=block, callback=callback
+    ):
+        for _ in range(max(1, int(calib_ms / block_ms))):
+            b = q.get()
+            ambient.append(float(np.sqrt(np.mean(b**2)) + 1e-9))
+        base = sum(ambient) / len(ambient)
+        thr = threshold if threshold else max(base * 3.0, 0.010)
+
+        while True:
+            b = q.get()
+            rms = float(np.sqrt(np.mean(b**2)))
+            dur += block_ms
+            if rms >= thr:
+                started = True
+                silence_acc = 0.0
+                frames.append(b)
+            elif started:
+                frames.append(b)
+                silence_acc += block_ms
+                if silence_acc >= silence_ms:
+                    break
+            if dur >= max_ms:
+                break
+
+    if not started or not frames:
+        return None
+    return np.concatenate(frames, axis=0).reshape(-1, 1)
+
+
 def _to_wav_bytes(audio, sf) -> bytes:
     buf = io.BytesIO()
     sf.write(buf, audio, SAMPLE_RATE_IN, format="WAV", subtype="PCM_16")
     return buf.getvalue()
+
+
+# ─────────────────────────────── STT (com fallback CPU) ───────────────────────
+class SpeechToText:
+    """Envolve o faster-whisper com fallback automático GPU -> CPU.
+
+    Em máquina com NVIDIA mas sem CUDA/cuBLAS, o carregamento em GPU quebra
+    (cublas64_12.dll not found). Aqui detectamos e caímos para CPU sozinhos.
+    """
+
+    def __init__(self, backend_cls, model_size: str, device: str):
+        self._cls = backend_cls
+        self._model_size = model_size
+        self._device = device
+        self._backend = self._make(device)
+
+    def _make(self, device: str):
+        compute = "int8" if device == "cpu" else "float16"
+        return self._cls(model_size=self._model_size, device=device, compute_type=compute)
+
+    def transcribe(self, wav_bytes: bytes, language: str):
+        try:
+            return self._backend.transcribe(wav_bytes, format="wav", language=language)
+        except Exception as exc:  # noqa: BLE001
+            msg = str(exc).lower()
+            if self._device != "cpu" and any(
+                k in msg for k in ("cuda", "cublas", "cudnn", "library", "dll")
+            ):
+                _err(f"[stt] GPU indisponível ({exc.__class__.__name__}); caindo para CPU.")
+                self._device = "cpu"
+                self._backend = self._make("cpu")
+                return self._backend.transcribe(wav_bytes, format="wav", language=language)
+            raise
 
 
 # ─────────────────────────────── fala (TTS) ───────────────────────────────────
@@ -145,16 +240,13 @@ def speak_fluid(text: str, tts, voice_id: str, language: str, sd, sf, np) -> Non
         for sent in sentences:
             try:
                 result = tts.synthesize(
-                    sent,
-                    voice_id=voice_id,
-                    output_format="wav",  # WAV = fácil de decodificar/tocar
-                    language=language,
+                    sent, voice_id=voice_id, output_format="wav", language=language
                 )
                 data, sr = sf.read(io.BytesIO(result.audio), dtype="float32")
                 audio_q.put((data, sr))
             except Exception as exc:  # noqa: BLE001
-                click.echo(f"[voz] falha ao sintetizar: {exc}", err=True)
-        audio_q.put(None)  # sentinela de fim
+                _err(f"[voz] falha ao sintetizar: {exc}")
+        audio_q.put(None)
 
     threading.Thread(target=producer, daemon=True).start()
 
@@ -180,16 +272,33 @@ def speak_fluid(text: str, tts, voice_id: str, language: str, sd, sf, np) -> Non
     help="voice_id da Cartesia (voz do Flux).",
 )
 @click.option("--whisper-model", default="small", show_default=True, help="Tamanho do Whisper (STT).")
-def main(model: str, engine_key: str, language: str, voice_id: str, whisper_model: str) -> None:
+@click.option(
+    "--device",
+    default="cpu",
+    show_default=True,
+    type=click.Choice(["cpu", "cuda"]),
+    help="Dispositivo do STT. 'cuda' precisa de CUDA/cuBLAS; senão fica em cpu.",
+)
+@click.option("--hands-free", is_flag=True, help="Sem apertar Enter: detecta fala por VAD.")
+@click.option("--vad-threshold", type=float, default=None, help="Sensibilidade do VAD (menor = mais sensível).")
+def main(
+    model: str,
+    engine_key: str,
+    language: str,
+    voice_id: str,
+    whisper_model: str,
+    device: str,
+    hands_free: bool,
+    vad_threshold: float | None,
+) -> None:
     """Conversa por voz com o Flux (persona + ferramentas + voz fluida)."""
     np, sd, sf = _require_audio()
 
     if not os.environ.get("CARTESIA_API_KEY"):
-        click.echo(
+        _err(
             "Erro: CARTESIA_API_KEY não definida. Configure sua chave da Cartesia:\n"
             '  Windows:  setx CARTESIA_API_KEY "sua-chave"   (reabra o terminal)\n'
-            '  Linux/Mac: export CARTESIA_API_KEY="sua-chave"',
-            err=True,
+            '  Linux/Mac: export CARTESIA_API_KEY="sua-chave"'
         )
         sys.exit(1)
 
@@ -198,30 +307,25 @@ def main(model: str, engine_key: str, language: str, voice_id: str, whisper_mode
         from openjarvis.speech.cartesia_tts import CartesiaTTSBackend
         from openjarvis.speech.faster_whisper import FasterWhisperBackend
     except ImportError as exc:
-        click.echo(
+        _err(
             f"Erro: openjarvis/áudio não instalado ({exc}).\n"
-            "Rode:  uv sync --extra dev --extra desktop",
-            err=True,
+            "Rode:  uv sync --extra dev --extra desktop"
         )
         sys.exit(1)
 
-    # Motores: STT local, TTS Cartesia, cérebro local
-    stt = FasterWhisperBackend(model_size=whisper_model, device="auto", compute_type="int8")
+    stt = SpeechToText(FasterWhisperBackend, whisper_model, device)
     tts = CartesiaTTSBackend(model="sonic-2", language=language)
 
     try:
         flux = Jarvis(model=model, engine_key=engine_key)
     except Exception as exc:  # noqa: BLE001
-        click.echo(
+        _err(
             f"Erro ao iniciar o Flux — {exc}\n"
-            "O engine está no ar? Para Ollama:  ollama serve  &&  "
-            f"ollama pull {model}",
-            err=True,
+            f"O engine está no ar? Para Ollama:  ollama serve  &&  ollama pull {model}"
         )
         sys.exit(1)
 
     persona = _load_persona()
-    # Ferramentas: respeita o config (aceita lista OU string "a,b,c"); fallback útil.
     tools: list[str] = []
     try:
         enabled = getattr(getattr(flux.config, "tools", None), "enabled", None)
@@ -235,53 +339,56 @@ def main(model: str, engine_key: str, language: str, voice_id: str, whisper_mode
         tools = ["web_search", "file_read", "think", "calculator"]
 
     history: list[tuple[str, str]] = []
+    mode = "hands-free (VAD)" if hands_free else "push-to-talk (Enter)"
 
-    click.echo("─" * 60)
-    click.echo(f"Flux (voz) pronto. Modelo: {model} | Voz: Cartesia | STT: whisper-{whisper_model}")
-    click.echo("Enter para falar; diga 'sair' ou Ctrl+C para encerrar.")
-    click.echo("─" * 60)
+    _out("─" * 60)
+    _out(f"Flux (voz) pronto. Modelo: {model} | STT: whisper-{whisper_model}/{device} | Modo: {mode}")
+    _out("Diga 'sair' ou Ctrl+C para encerrar.")
+    _out("─" * 60)
 
     try:
         while True:
-            input("\n[Enter para falar] ")
-            audio = record_until_enter(sd, np)
+            if hands_free:
+                audio = record_hands_free(sd, np, threshold=vad_threshold)
+            else:
+                input("\n[Enter para falar] ")
+                audio = record_until_enter(sd, np)
+
             if audio is None or len(audio) < SAMPLE_RATE_IN // 2:
-                click.echo("(nada capturado)")
+                _out("(nada capturado)")
                 continue
 
-            # Transcreve (local)
             try:
-                result = stt.transcribe(_to_wav_bytes(audio, sf), format="wav", language=language)
+                result = stt.transcribe(_to_wav_bytes(audio, sf), language)
                 user_text = (getattr(result, "text", "") or "").strip()
             except Exception as exc:  # noqa: BLE001
-                click.echo(f"[stt] falha ao transcrever: {exc}", err=True)
+                _err(f"[stt] falha ao transcrever: {exc}")
                 continue
 
             if not user_text:
-                click.echo("(não entendi)")
+                _out("(não entendi)")
                 continue
 
-            click.echo(f"\n👤 senhor: {user_text}")
+            _out(f"\n👤 senhor: {user_text}")
             if user_text.lower().strip(" .!?") in {"sair", "tchau", "encerrar", "fim"}:
                 speak_fluid("Às ordens, senhor. Até logo.", tts, voice_id, language, sd, sf, np)
                 break
 
-            # Monta o prompt: persona + histórico recente + fala atual
             convo = "\n".join(f"Senhor: {u}\nFlux: {a}" for u, a in history[-4:])
             query = f"{persona}\n\n{convo}\n\nSenhor: {user_text}\nFlux:".strip()
 
             try:
                 reply = flux.ask(query, agent="orchestrator", tools=tools)
             except Exception as exc:  # noqa: BLE001
-                click.echo(f"[flux] erro: {exc}", err=True)
+                _err(f"[flux] erro: {exc}")
                 continue
 
             reply = (reply or "").strip()
-            click.echo(f"🎩 Flux: {reply}")
+            _out(f"🎩 Flux: {reply}")
             speak_fluid(reply, tts, voice_id, language, sd, sf, np)
             history.append((user_text, reply))
     except KeyboardInterrupt:
-        click.echo("\nEncerrado, senhor.")
+        _out("\nEncerrado, senhor.")
     finally:
         flux.close()
 

@@ -18,15 +18,28 @@ Você fala, o Flux responde **falando** (voz "British Butler" da Cartesia).
 Cérebro e transcrição rodam **locais**; só a voz de saída vai à nuvem.
 
 ```bash
-# 1. extras de áudio + libs deste script
-uv sync --extra dev --extra desktop
-uv pip install sounddevice soundfile numpy
+# 1. extras de áudio (grupo flux-voice = sounddevice + soundfile + numpy)
+uv sync --extra dev --extra desktop --extra flux-voice
 # 2. chave da Cartesia (voz fluida)
 #    Windows:  setx CARTESIA_API_KEY "sua-chave"   (reabra o terminal)
 #    Linux/Mac: export CARTESIA_API_KEY="sua-chave"
-# 3. rodar
-uv run python examples/flux/flux_voice.py
+# 3. rodar (Windows: pela venv direto, p/ não perder a extensão nativa/áudio)
+.venv\Scripts\python.exe examples\flux\flux_voice.py
+#    (ou sem re-sincronizar deps:  uv run --no-sync python examples/flux/flux_voice.py)
 ```
 
 Enter para falar; Enter de novo para parar. Diga "sair" ou Ctrl+C para encerrar.
-Voz em PT-BR: passe `--voice <voice_id-da-Cartesia>` (veja vozes em play.cartesia.ai).
+
+Opções:
+- `--hands-free` — sem apertar Enter; detecta sua fala por VAD (silêncio encerra).
+  Se disparar cedo/tarde demais, ajuste com `--vad-threshold 0.02` (menor = mais sensível).
+- `--device cuda` — usa a GPU (precisa CUDA/cuBLAS instalados). Padrão é `cpu` (sempre funciona).
+- `--voice <voice_id>` — troca a voz (padrão já é a sua). Vozes em play.cartesia.ai.
+- `--model qwen3.5:35b` — respostas mais "inteligentes" (um pouco mais lentas).
+
+> **Nota Windows:** `uv run`/`uv sync` sem os extras podem *remover* a extensão nativa
+> `openjarvis_rust` e as libs de áudio. Por isso rode pela venv direto
+> (`.venv\Scripts\python.exe ...`) ou use `uv run --no-sync`.
+
+> **Web fala de volta?** Não. A interface (`jarvis serve`) só faz voz de *entrada*
+> (ditado). Conversa por voz **mão-dupla** é só por este script.

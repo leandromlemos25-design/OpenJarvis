@@ -131,6 +131,8 @@ sandbox-docker = ["docker>=7.0"]
 dashboard = ["textual>=0.80"]
 speech = ["faster-whisper>=1.0"]
 speech-deepgram = ["deepgram-sdk>=3.0"]
+# Modo voz do Flux (examples/flux/flux_voice.py): captura de mic + playback.
+flux-voice = ["sounddevice>=0.4", "soundfile>=0.12", "numpy>=1.24"]
 eval-wandb = ["wandb>=0.17"]
 eval-sheets = ["gspread>=6.0", "google-auth>=2.0"]
 mining-pearl-cpu = [
