@@ -207,7 +207,7 @@ def main(model: str, engine_key: str, language: str, voice_id: str, whisper_mode
 
     # Motores: STT local, TTS Cartesia, cérebro local
     stt = FasterWhisperBackend(model_size=whisper_model, device="auto", compute_type="int8")
-    tts = CartesiaTTSBackend(model="sonic", language=language)
+    tts = CartesiaTTSBackend(model="sonic-2", language=language)
 
     try:
         flux = Jarvis(model=model, engine_key=engine_key)

@@ -21,7 +21,7 @@ def _cartesia_synthesize(
     api_key: str,
     text: str,
     voice_id: str,
-    model: str = "sonic",
+    model: str = "sonic-2",
     output_format: str = "mp3",
     speed: float = 1.0,
     language: str = "en",
@@ -47,7 +47,14 @@ def _cartesia_synthesize(
         },
         timeout=120.0,
     )
-    resp.raise_for_status()
+    try:
+        resp.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        # Surface Cartesia's actual error message (e.g. sunsetted model),
+        # which raise_for_status() would otherwise discard.
+        raise RuntimeError(
+            f"Cartesia TTS {resp.status_code}: {resp.text}"
+        ) from exc
     return resp.content
 
 
@@ -58,7 +65,7 @@ class CartesiaTTSBackend(TTSBackend):
     backend_id = "cartesia"
 
     def __init__(
-        self, *, api_key: str = "", model: str = "sonic", language: str = "en"
+        self, *, api_key: str = "", model: str = "sonic-2", language: str = "en"
     ) -> None:
         self._api_key = api_key or os.environ.get("CARTESIA_API_KEY", "")
         self._model = model
