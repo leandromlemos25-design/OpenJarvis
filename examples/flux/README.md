@@ -19,7 +19,9 @@ Cérebro e transcrição rodam **locais**; só a voz de saída vai à nuvem.
 
 ```bash
 # 1. extras de áudio (grupo flux-voice = sounddevice + soundfile + numpy)
-uv sync --extra dev --extra desktop --extra flux-voice
+uv sync --extra dev --extra desktop --extra flux-voice --extra server
+#    todo `uv sync` remove a extensão Rust — recompile depois:
+uv run maturin develop --manifest-path rust/crates/openjarvis-python/Cargo.toml
 # 2. chave da Cartesia (voz fluida)
 #    Windows:  setx CARTESIA_API_KEY "sua-chave"   (reabra o terminal)
 #    Linux/Mac: export CARTESIA_API_KEY="sua-chave"

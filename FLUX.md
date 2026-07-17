@@ -28,7 +28,9 @@ serve: precisa de processo persistente + inferência local). Passos:
 ollama pull qwen3.5:9b        # ou qwen3.5:4b numa máquina mais modesta
 
 # 2. Instale o OpenJarvis (a partir da raiz do repo)
-uv sync --extra dev
+uv sync --extra dev --extra desktop --extra flux-voice --extra server
+# ATENÇÃO: todo `uv sync` remove a extensão nativa Rust — recompile sempre depois:
+uv run maturin develop --manifest-path rust/crates/openjarvis-python/Cargo.toml
 
 # 3. Instale a personalização do Flux (persona + config em ~/.openjarvis)
 bash scripts/setup_flux.sh
@@ -54,7 +56,7 @@ O Flux tem um **modo voz**: você fala, ele responde **falando** com voz de mord
 - 🔊 Voz de saída: **Cartesia** (nuvem) — única forma de soar *bem fluida* em PT-BR.
 
 ```bash
-uv sync --extra dev --extra desktop --extra flux-voice
+uv sync --extra dev --extra desktop --extra flux-voice --extra server
 setx CARTESIA_API_KEY "sua-chave"        # Windows (reabra o terminal); export no Linux/Mac
 # Windows: rode pela venv direto p/ não perder a extensão nativa/áudio:
 .venv\Scripts\python.exe examples\flux\flux_voice.py
