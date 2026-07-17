@@ -175,8 +175,9 @@ def speak_fluid(text: str, tts, voice_id: str, language: str, sd, sf, np) -> Non
 @click.option(
     "--voice",
     "voice_id",
-    default="",
-    help="voice_id da Cartesia (vazio = voz British Butler padrão).",
+    default="28a942b5-74f3-47bb-9b56-4c3f2562d3ba",
+    show_default=True,
+    help="voice_id da Cartesia (voz do Flux).",
 )
 @click.option("--whisper-model", default="small", show_default=True, help="Tamanho do Whisper (STT).")
 def main(model: str, engine_key: str, language: str, voice_id: str, whisper_model: str) -> None:
