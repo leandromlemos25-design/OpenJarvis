@@ -46,6 +46,24 @@ Ou use o agente de exemplo direto:
 python examples/flux/flux.py "resuma minha agenda ideal para focar hoje"
 ```
 
+## Falar com o Flux (voz mão-dupla, fluida)
+
+O Flux tem um **modo voz**: você fala, ele responde **falando** com voz de mordomo.
+
+- 🧠 Cérebro (LLM) e 👂 transcrição (faster-whisper): **locais e privados**.
+- 🔊 Voz de saída: **Cartesia** (nuvem) — única forma de soar *bem fluida* em PT-BR.
+
+```bash
+uv sync --extra dev --extra desktop
+uv pip install sounddevice soundfile numpy
+setx CARTESIA_API_KEY "sua-chave"        # Windows (reabra o terminal); export no Linux/Mac
+uv run python examples/flux/flux_voice.py
+```
+
+Detalhes e voz PT-BR: [`examples/flux/README.md`](examples/flux/README.md).
+A voz de **entrada** também funciona na interface web (`jarvis serve`), via o bloco
+`[speech]` já configurado no preset.
+
 ## Deixar o Flux online
 
 Para acessar de fora (celular, outro PC), veja **[deploy/flux-online.md](deploy/flux-online.md)**.
