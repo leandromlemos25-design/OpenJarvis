@@ -39,6 +39,17 @@ enabled = ["web_search", "file_read", "file_write", "shell_exec", "think", "calc
 [memory_files]
 persona_name = "flux"              # carrega ~/.openjarvis/personas/flux/{SOUL,MEMORY,USER}.md
 
+# ─── Voz de ENTRADA: falar com o Flux (STT local, em português) ─────
+# Você fala no microfone (na interface web) -> transcreve localmente -> Flux responde.
+# Precisa: `jarvis serve` e abrir a interface no navegador (localhost:8000).
+# Obs.: o Flux FALAR de volta (voz de saída) é uma camada à parte no frontend.
+[speech]
+backend = "faster-whisper"         # 100% local, já vem instalado
+model = "small"                    # bom p/ PT-BR; "base" é mais leve, "medium" mais preciso
+language = "pt"                    # força português (melhora a transcrição)
+device = "auto"                    # "cuda" se tiver GPU NVIDIA; senão "cpu"
+compute_type = "int8"              # leve e rápido; "float16" se usar GPU
+
 # ─── API (só loopback por segurança) ────────────────────────
 # Deixe em 127.0.0.1. Para acessar de fora, NÃO exponha a porta:
 # use um túnel apontando para localhost (veja deploy/flux-online.md).
