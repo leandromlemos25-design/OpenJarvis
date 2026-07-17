@@ -65,9 +65,12 @@ Opções úteis: `--hands-free` (sem apertar Enter, detecta fala por VAD),
 `--device cuda` (GPU, precisa CUDA/cuBLAS; padrão é `cpu`), `--model qwen3.5:35b`.
 Detalhes e voz PT-BR: [`examples/flux/README.md`](examples/flux/README.md).
 
-**Sobre a interface web (`jarvis serve`):** ela faz voz de **entrada** (você dita
-pelo microfone), mas **não fala as respostas de volta** — o servidor não sintetiza
-TTS no chat. Para conversa por voz **mão-dupla**, use o script `flux_voice.py` acima.
+**Interface web (`jarvis serve`) — voz mão-dupla no navegador:** a web deste fork
+fala as respostas de volta com a voz do Flux (Cartesia). Requisitos: a variável
+`CARTESIA_API_KEY` definida **antes** de rodar `jarvis serve`, e pronto — abra
+`http://localhost:8000`, o microfone dita (STT local) e o alto-falante 🔊 no campo
+de mensagem liga/desliga a voz das respostas (ligada por padrão). O build do
+frontend já vem commitado — não precisa de Node/npm na sua máquina.
 
 ## Deixar o Flux online
 

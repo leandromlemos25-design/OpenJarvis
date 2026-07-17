@@ -71,7 +71,8 @@ frontend/dist/
 # Desktop
 desktop/node_modules/
 desktop/dist/
-src/openjarvis/server/static/
+# Fork pessoal: o build do frontend É commitado (src/openjarvis/server/static/)
+# para o `jarvis serve` funcionar sem Node na máquina do usuário.
 
 # Desktop (Tauri)
 frontend/src-tauri/target/

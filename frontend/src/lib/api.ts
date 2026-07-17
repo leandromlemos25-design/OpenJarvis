@@ -377,6 +377,45 @@ export async function fetchSpeechHealth(): Promise<SpeechHealth> {
   return res.json();
 }
 
+// Text-to-speech for spoken chat replies (Flux voice). Server-side Cartesia;
+// available only when the server has CARTESIA_API_KEY configured.
+export async function fetchTtsHealth(): Promise<SpeechHealth> {
+  try {
+    const res = await apiFetch(`/v1/speech/tts-health`);
+    if (!res.ok) return { available: false };
+    return res.json();
+  } catch {
+    return { available: false };
+  }
+}
+
+export async function synthesizeSpeech(
+  text: string,
+  opts: { voiceId?: string; language?: string; speed?: number } = {},
+): Promise<Blob> {
+  const res = await apiFetch(`/v1/speech/synthesize`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      text,
+      ...(opts.voiceId ? { voice_id: opts.voiceId } : {}),
+      language: opts.language ?? 'pt',
+      ...(opts.speed ? { speed: opts.speed } : {}),
+    }),
+  });
+  if (!res.ok) {
+    let detail = '';
+    try {
+      const body = await res.json();
+      detail = typeof body.detail === 'string' ? body.detail : '';
+    } catch {
+      // Keep the status-only message below when the body is not JSON.
+    }
+    throw new Error(detail || `TTS failed: ${res.status}`);
+  }
+  return res.blob();
+}
+
 // ---------------------------------------------------------------------------
 // Agent Manager
 // ---------------------------------------------------------------------------

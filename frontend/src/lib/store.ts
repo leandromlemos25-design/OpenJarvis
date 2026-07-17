@@ -80,6 +80,8 @@ interface Settings {
   temperature: number;
   maxTokens: number;
   speechEnabled: boolean;
+  // Spoken replies (Flux voice): read assistant answers aloud via server TTS.
+  voiceRepliesEnabled: boolean;
 }
 
 function loadSettings(): Settings {
@@ -92,7 +94,10 @@ function loadSettings(): Settings {
     defaultAgent: '',
     temperature: 0.7,
     maxTokens: 4096,
-    speechEnabled: false,
+    // Voice-first fork: mic dictation on by default (still requires the
+    // server's speech backend to be available), and spoken replies on.
+    speechEnabled: true,
+    voiceRepliesEnabled: true,
   };
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);

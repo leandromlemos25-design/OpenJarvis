@@ -8,7 +8,14 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import (
+    APIRouter,
+    HTTPException,
+    Request,
+    Response,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -944,6 +951,74 @@ async def speech_health(request: Request):
         "backend": backend.backend_id,
         **({"reason": reason} if reason else {}),
     }
+
+
+def _get_tts_backend(request: Request):
+    """Lazily build and cache the TTS backend used for spoken chat replies.
+
+    Cartesia only for now (matches the Flux voice mode); requires
+    CARTESIA_API_KEY. Cached on app.state so the HTTP client/config is
+    reused across requests.
+    """
+    cached = getattr(request.app.state, "tts_backend", None)
+    if cached is not None:
+        return cached
+    import os
+
+    if not os.environ.get("CARTESIA_API_KEY"):
+        return None
+    from openjarvis.speech.cartesia_tts import CartesiaTTSBackend
+
+    backend = CartesiaTTSBackend(model="sonic-2")
+    request.app.state.tts_backend = backend
+    return backend
+
+
+@speech_router.get("/tts-health")
+async def tts_health(request: Request):
+    """Check if text-to-speech (spoken replies) is available."""
+    backend = _get_tts_backend(request)
+    if backend is None:
+        return {"available": False, "reason": "CARTESIA_API_KEY not set"}
+    return {"available": True, "backend": backend.backend_id}
+
+
+@speech_router.post("/synthesize")
+async def synthesize_speech(request: Request):
+    """Synthesize text to audio (WAV) for spoken chat replies."""
+    backend = _get_tts_backend(request)
+    if backend is None:
+        raise HTTPException(
+            status_code=501,
+            detail="TTS not configured (set CARTESIA_API_KEY and restart)",
+        )
+
+    body = await request.json()
+    text = (body.get("text") or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Missing 'text' field")
+    # Guard against runaway synthesis costs on very long replies.
+    text = text[:5000]
+    voice_id = body.get("voice_id") or ""
+    language = body.get("language") or "pt"
+    speed = float(body.get("speed") or 1.0)
+
+    try:
+        result = await asyncio.to_thread(
+            backend.synthesize,
+            text,
+            voice_id=voice_id,
+            output_format="wav",
+            language=language,
+            speed=speed,
+        )
+    except Exception as exc:
+        logger.exception("TTS synthesis failed")
+        raise HTTPException(
+            status_code=502, detail=f"TTS synthesis failed: {exc}"
+        ) from exc
+
+    return Response(content=result.audio, media_type="audio/wav")
 
 
 # ---- Feedback routes ----

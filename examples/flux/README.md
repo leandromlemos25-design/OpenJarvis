@@ -41,5 +41,7 @@ Opções:
 > `openjarvis_rust` e as libs de áudio. Por isso rode pela venv direto
 > (`.venv\Scripts\python.exe ...`) ou use `uv run --no-sync`.
 
-> **Web fala de volta?** Não. A interface (`jarvis serve`) só faz voz de *entrada*
-> (ditado). Conversa por voz **mão-dupla** é só por este script.
+> **Web fala de volta?** Sim (neste fork): com `CARTESIA_API_KEY` no ambiente,
+> `jarvis serve` + navegador dão voz mão-dupla — mic dita (STT local) e as
+> respostas saem faladas na voz do Flux (botão 🔊 no campo de mensagem).
+> Este script continua sendo a opção de terminal (com `--hands-free`/VAD).

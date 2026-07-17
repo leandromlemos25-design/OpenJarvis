@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Send, Square, Paperclip, Search } from 'lucide-react';
+import { Send, Square, Paperclip, Search, Volume2, VolumeX } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAppStore, generateId } from '../../lib/store';
 import { streamChat, streamResearch } from '../../lib/sse';
 import { fetchSavings, getBase } from '../../lib/api';
+import { speakReply, stopSpeaking } from '../../lib/voice';
 import { listConnectors, getSyncStatus } from '../../lib/connectors-api';
 import { MicButton } from './MicButton';
 import { useSpeech } from '../../hooks/useSpeech';
@@ -85,6 +86,8 @@ export function InputArea() {
   const streamState = useAppStore((s) => s.streamState);
   const messages = useAppStore((s) => s.messages);
   const speechEnabled = useAppStore((s) => s.settings.speechEnabled);
+  const voiceRepliesEnabled = useAppStore((s) => s.settings.voiceRepliesEnabled);
+  const updateSettings = useAppStore((s) => s.updateSettings);
   const maxTokens = useAppStore((s) => s.settings.maxTokens);
   const temperature = useAppStore((s) => s.settings.temperature);
   const createConversation = useAppStore((s) => s.createConversation);
@@ -174,6 +177,8 @@ export function InputArea() {
     }
 
     setInput('');
+    // A new question interrupts whatever the Flux voice was still saying.
+    stopSpeaking();
 
     let convId = activeId;
     if (!convId) {
@@ -503,6 +508,21 @@ export function InputArea() {
         researchTraces.length > 0 ? researchTraces : undefined,
         researchSourcesByRef.size > 0 ? flushSources() : undefined,
       );
+      // Spoken reply (Flux voice) — fire and forget; only for real answers.
+      const isErrorReply =
+        accumulatedContent.startsWith('Error:') ||
+        accumulatedContent === 'No response was generated. Please try again.' ||
+        accumulatedContent === '(Generation stopped)';
+      if (
+        useAppStore.getState().settings.voiceRepliesEnabled &&
+        !isErrorReply &&
+        !audioMeta
+      ) {
+        speakReply(accumulatedContent).catch((err) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          toast.error(`Voz do Flux falhou: ${msg}`, { duration: 6000 });
+        });
+      }
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
@@ -610,6 +630,27 @@ export function InputArea() {
           </button>
         ) : (
           <div className="flex items-center gap-1">
+            <button
+              onClick={() => {
+                const next = !voiceRepliesEnabled;
+                if (!next) stopSpeaking();
+                updateSettings({ voiceRepliesEnabled: next });
+              }}
+              className="p-2 rounded-xl transition-colors shrink-0 cursor-pointer"
+              style={{
+                background: voiceRepliesEnabled
+                  ? 'var(--color-accent)'
+                  : 'var(--color-bg-tertiary)',
+                color: voiceRepliesEnabled ? 'white' : 'var(--color-text-tertiary)',
+              }}
+              title={
+                voiceRepliesEnabled
+                  ? 'Voz do Flux ligada — clique para silenciar'
+                  : 'Voz do Flux desligada — clique para ouvir as respostas'
+              }
+            >
+              {voiceRepliesEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+            </button>
             <MicButton
               state={speechState}
               onClick={handleMicClick}
