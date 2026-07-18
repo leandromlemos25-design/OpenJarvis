@@ -74,6 +74,29 @@ fala as respostas de volta com a voz do Flux (Cartesia). Requisitos: a variável
 de mensagem liga/desliga a voz das respostas (ligada por padrão). O build do
 frontend já vem commitado — não precisa de Node/npm na sua máquina.
 
+## Atualizar o Flux (web) sem dor
+
+A versão do pacote vem de *git tag*, então `git pull` sozinho **não** atualiza a
+interface web servida pelo `jarvis serve` (o `static` fica congelado no `.venv`).
+
+**Ordem correta ao atualizar** (parar ANTES do sync — o servidor rodando trava os
+arquivos da venv e o sync quebra com "error 32"):
+
+```bash
+Stop-Process -Name jarvis -Force          # 1. parar o servidor primeiro
+git pull origin main                       # 2. puxar
+uv sync --reinstall-package openjarvis --extra dev --extra desktop --extra flux-voice --extra server
+uv run maturin develop --manifest-path rust/crates/openjarvis-python/Cargo.toml
+.venv\Scripts\jarvis.exe serve             # 3. subir de novo
+```
+
+**Fim da dança (recomendado):** instale em modo *editable* uma vez — aí `git pull`
+reflete na hora, sem reinstalar nunca mais:
+
+```bash
+uv pip install -e . --no-deps
+```
+
 ## Deixar o Flux online
 
 Para acessar de fora (celular, outro PC), veja **[deploy/flux-online.md](deploy/flux-online.md)**.
