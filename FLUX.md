@@ -74,6 +74,36 @@ fala as respostas de volta com a voz do Flux (Cartesia). Requisitos: a variável
 de mensagem liga/desliga a voz das respostas (ligada por padrão). O build do
 frontend já vem commitado — não precisa de Node/npm na sua máquina.
 
+## Flux no controle da operação SmartFlux
+
+O Flux tem uma ferramenta nativa (`smartflux`) que opera o **SmartFlux Lead
+Radar** de verdade: briefing do dia, funil, respostas pendentes, financeiro,
+insights de conversão, busca de leads e raio-X de empresas.
+
+Configurar (uma vez, no Windows — reabra o terminal depois):
+
+```powershell
+setx SMARTFLUX_BASE_URL "https://SEU-SITE.pages.dev"
+setx SMARTFLUX_API_TOKEN "o PUBLIC_API_TOKEN do painel Cloudflare"
+```
+
+E garanta que `"smartflux"` está em `[tools] enabled` no `~/.openjarvis/config.toml`
+(o preset novo já traz). Exemplos do que pedir ao Flux, por voz ou texto:
+
+- "Flux, qual o briefing de hoje?"
+- "Tem resposta de lead esperando?"
+- "Como está o financeiro do mês?"
+- "Busca advocacia em Uberaba-MG e me diz os melhores"
+
+Para o Flux também **mexer no código** do SmartFlux, clone o repo ao lado do
+OpenJarvis (`git clone https://github.com/leandromlemos25-design/lead-search-smartflux.git`)
+— com `file_read`/`shell_exec` habilitados ele lê e edita quando o senhor pedir.
+
+> Nota honesta: no chat **web**, o caminho de streaming responde direto do
+> modelo (sem executar ferramentas) — a operação completa funciona no terminal
+> (`jarvis chat` / `jarvis ask` / modo voz `flux_voice.py`) e na página
+> **Agents** da web. Elevar tools ao chat web streaming é um próximo passo.
+
 ## Atualizar o Flux (web) sem dor
 
 A versão do pacote vem de *git tag*, então `git pull` sozinho **não** atualiza a

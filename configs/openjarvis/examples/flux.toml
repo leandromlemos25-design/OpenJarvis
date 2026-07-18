@@ -33,7 +33,11 @@ default_agent = "orchestrator"     # troque por "simple" se quiser chat puro, se
 max_turns = 10
 
 [tools]
-enabled = ["web_search", "file_read", "file_write", "shell_exec", "think", "calculator"]
+enabled = ["web_search", "file_read", "file_write", "shell_exec", "think", "calculator", "smartflux"]
+# A ferramenta "smartflux" dá ao Flux controle da operação SmartFlux Lead Radar
+# (briefing do dia, leads, respostas, financeiro). Requer no ambiente:
+#   SMARTFLUX_BASE_URL  = https://<seu-site>.pages.dev   (sem barra no final)
+#   SMARTFLUX_API_TOKEN = o PUBLIC_API_TOKEN do painel Cloudflare
 
 # ─── Persona: a personalidade do Flux (mordomo, chama de "senhor") ──
 [memory_files]
