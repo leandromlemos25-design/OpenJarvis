@@ -19,9 +19,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'OpenJarvis',
-        short_name: 'Jarvis',
-        description: 'On-device AI assistant',
+        name: 'Flux',
+        short_name: 'Flux',
+        description: 'Assistente pessoal local do senhor',
         theme_color: '#161618',
         background_color: '#161618',
         display: 'standalone',
@@ -33,6 +33,10 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         navigateFallbackDenylist: [/^\/v1\//, /^\/health/, /^\/dashboard/, /^\/api\//],
+        // Local tool that iterates often: a new build takes over on the next
+        // reload instead of lingering behind a stale cached service worker.
+        skipWaiting: true,
+        clientsClaim: true,
       },
     }),
   ],
