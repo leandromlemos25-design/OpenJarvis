@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Send, Square, Paperclip, Search, Volume2, VolumeX } from 'lucide-react';
+import { Send, Square, Paperclip, Search, Volume2, VolumeX, AudioLines } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAppStore, generateId } from '../../lib/store';
 import { streamChat, streamResearch } from '../../lib/sse';
@@ -88,6 +88,7 @@ export function InputArea() {
   const speechEnabled = useAppStore((s) => s.settings.speechEnabled);
   const voiceRepliesEnabled = useAppStore((s) => s.settings.voiceRepliesEnabled);
   const updateSettings = useAppStore((s) => s.updateSettings);
+  const setVoiceModeOpen = useAppStore((s) => s.setVoiceModeOpen);
   const maxTokens = useAppStore((s) => s.settings.maxTokens);
   const temperature = useAppStore((s) => s.settings.temperature);
   const createConversation = useAppStore((s) => s.createConversation);
@@ -613,7 +614,7 @@ export function InputArea() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={selectedModel ? 'Message OpenJarvis...' : 'Pick a model first (⌘K)...'}
+          placeholder={selectedModel ? 'Fale com o Flux...' : 'Escolha um modelo primeiro (⌘K)...'}
           rows={1}
           className="flex-1 bg-transparent outline-none resize-none text-sm leading-relaxed"
           style={{ color: 'var(--color-text)', maxHeight: '200px' }}
@@ -630,6 +631,14 @@ export function InputArea() {
           </button>
         ) : (
           <div className="flex items-center gap-1">
+            <button
+              onClick={() => setVoiceModeOpen(true)}
+              className="p-2 rounded-xl transition-colors shrink-0 cursor-pointer"
+              style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-accent)' }}
+              title="Modo voz do Flux (tela imersiva)"
+            >
+              <AudioLines size={16} />
+            </button>
             <button
               onClick={() => {
                 const next = !voiceRepliesEnabled;

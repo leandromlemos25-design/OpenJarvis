@@ -141,6 +141,7 @@ interface AppState {
 
   // Command palette
   commandPaletteOpen: boolean;
+  voiceModeOpen: boolean;
 
   // Sidebar
   sidebarOpen: boolean;
@@ -200,6 +201,7 @@ interface AppState {
 
   // Actions: UI
   setCommandPaletteOpen: (open: boolean) => void;
+  setVoiceModeOpen: (open: boolean) => void;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   toggleSystemPanel: () => void;
@@ -263,6 +265,7 @@ export const useAppStore = create<AppState>((set, get) => {
     settings: loadSettings(),
 
     commandPaletteOpen: false,
+    voiceModeOpen: false,
     sidebarOpen: true,
     systemPanelOpen: true,
 
@@ -493,6 +496,7 @@ export const useAppStore = create<AppState>((set, get) => {
     // ── UI ──────────────────────────────────────────────────────────
 
     setCommandPaletteOpen: (open: boolean) => set({ commandPaletteOpen: open }),
+    setVoiceModeOpen: (open: boolean) => set({ voiceModeOpen: open }),
     toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
     setSidebarOpen: (open: boolean) => set({ sidebarOpen: open }),
     toggleSystemPanel: () => set((s) => ({ systemPanelOpen: !s.systemPanelOpen })),

@@ -9,9 +9,9 @@ import { listConnectors } from '../../lib/connectors-api';
 
 function getGreeting(): string {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
+  if (hour < 12) return 'Bom dia, senhor';
+  if (hour < 18) return 'Boa tarde, senhor';
+  return 'Boa noite, senhor';
 }
 
 export function ChatArea() {
@@ -109,7 +109,7 @@ export function ChatArea() {
               {getGreeting()}
             </h2>
             <p className="text-sm text-center max-w-sm mb-6" style={{ color: 'var(--color-text-secondary)' }}>
-              Ask anything. Your AI runs locally — private, fast, and always available.
+              Sou o Flux. Rodo na sua máquina — privado, rápido e sempre à disposição. Fale ou digite.
             </p>
 
             {/* Quick action hints */}
