@@ -6,6 +6,17 @@ from typing import Any
 
 __all__ = ["SECURITY_HEADERS", "create_security_middleware"]
 
+# Locked to same-origin, but allow the data:/blob: URIs the UI needs:
+# data: fonts (KaTeX) and images (inline SVG textures), and blob: audio/media
+# (the Flux voice reply is played from a blob: URL).
+_CSP = (
+    "default-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+    "img-src 'self' data: blob:; "
+    "font-src 'self' data:; "
+    "media-src 'self' blob:; "
+    "connect-src 'self'"
+)
+
 
 def create_security_middleware() -> Any:
     """Create a FastAPI middleware that adds security headers.
@@ -45,12 +56,12 @@ def create_security_middleware() -> Any:
                 "max-age=31536000; includeSubDomains"
             )
             response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+            # Allow same-origin microphone so browser voice (STT dictation +
+            # Flux voice mode) works; camera/geolocation stay off.
             response.headers["Permissions-Policy"] = (
-                "camera=(), microphone=(), geolocation=()"
+                "camera=(), microphone=(self), geolocation=()"
             )
-            response.headers["Content-Security-Policy"] = (
-                "default-src 'self' 'unsafe-inline' 'unsafe-eval'"
-            )
+            response.headers["Content-Security-Policy"] = _CSP
             return response
 
     return SecurityHeadersMiddleware
@@ -63,6 +74,6 @@ SECURITY_HEADERS = {
     "X-XSS-Protection": "1; mode=block",
     "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
     "Referrer-Policy": "strict-origin-when-cross-origin",
-    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
-    "Content-Security-Policy": "default-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "Permissions-Policy": "camera=(), microphone=(self), geolocation=()",
+    "Content-Security-Policy": _CSP,
 }
